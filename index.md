@@ -13,7 +13,7 @@ This course covers the design and implementation of programming languages. While
 
 ### The Project: Snek
 
-We will implement a custom dynamic language called **Snek**. The project covers the entire language pipeline:
+We will implement a custom dynamic language called **Snek** (Snek is Not Exactly Komplicated). The project covers the entire language pipeline:
 
 1.  **Scanning:** Converting raw source code into tokens.
 2.  **Parsing:** Constructing Abstract Syntax Trees (ASTs) from tokens.
