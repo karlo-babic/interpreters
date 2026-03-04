@@ -69,7 +69,9 @@ Finally, we traverse the AST and execute the logic. This is where the code actua
 
 ## 3. Project Setup
 
-Create a directory for your project. Inside, we will create a main entry point file named `snek.py`.
+We will organize our project simply. Create a directory for your project. Inside, we will create two files:
+1. `snek.py`: The main entry point.
+2. `error.py`: A utility module for reporting errors.
 
 **Requirements:**
 *   You must use **Python 3.10** or newer. We will use the `match` / `case` syntax introduced in 3.10 for pattern matching in later chapters.
@@ -84,18 +86,36 @@ The interpreter supports two modes of operation:
 
 ### Implementation
 
-Create `snek.py` and add the following code structure. 
+First, create the error handling module. This decouples error reporting from the main interpreter loop, preventing circular dependencies later on.
 
-**A note on Python style:** You might wonder why we are using a `Snek` class filled with `@staticmethod`s instead of standard top-level Python functions. The book uses Java, which requires all code to reside inside a class. The author uses `static` methods and variables to manage the global state of the interpreter (like whether a syntax error has occurred). 
-
-While we could use global variables in Python, using a class as a "namespace" to group our interpreter's state and main functions keeps our architecture cleanly encapsulated and closely aligned with the book's structure.
+Create `error.py`:
 
 ```python
 import sys
 
-class Snek:
-    had_error = False
+# Global error flags
+had_error = False
+had_runtime_error = False
 
+def error(line, message):
+    """Reports a syntax error to the user."""
+    report(line, "", message)
+
+def report(line, where, message):
+    global had_error
+    print(f"[line {line}] Error{where}: {message}", file=sys.stderr)
+    had_error = True
+```
+
+Now, create `snek.py` and add the main entry point logic. Notice that we import the `error` module to handle status reporting.
+
+**A note on Python style:** You might wonder why we are using a `Snek` class filled with `@staticmethod`s instead of standard top-level Python functions. The book uses Java, which requires all code to reside inside a class. While we could use global variables in Python, using a class as a "namespace" to group our interpreter's main functions keeps our architecture cleanly encapsulated and closely aligned with the book's structure.
+
+```python
+import sys
+import error
+
+class Snek:
     @staticmethod
     def main():
         """Main entry point for the interpreter."""
@@ -118,7 +138,9 @@ class Snek:
             Snek.run(script)
             
             # If there was an error during execution, exit with an error code.
-            if Snek.had_error:
+            if error.had_error:
+                sys.exit(1)
+            if error.had_runtime_error:
                 sys.exit(1)
         except FileNotFoundError:
             print(f"Could not find file: {path}")
@@ -127,7 +149,7 @@ class Snek:
     @staticmethod
     def run_prompt():
         """Runs the interactive REPL."""
-        print("Snek REPL (Type 'exit' to quit)")
+        print("Snek REPL (Type 'exit' or Ctrl+D/Ctrl+C to quit)")
         while True:
             try:
                 line = input("> ")
@@ -137,9 +159,9 @@ class Snek:
                 Snek.run(line)
                 # We reset the error flag in the REPL so one mistake 
                 # doesn't kill the entire session.
-                Snek.had_error = False
+                error.had_error = False
             except (EOFError, KeyboardInterrupt):
-                # Catches Ctrl+D (Unix) or Ctrl+Z+Enter (Windows)
+                # Catches Ctrl+D (Unix) or Ctrl+C (Windows)
                 print("\nExiting...")
                 break
 
@@ -149,16 +171,9 @@ class Snek:
         # For now, we just print the code to prove we received it.
         # Later, this will connect to the Scanner and Parser.
         print(f"DEBUG: Received {len(source)} characters.")
-
-    @staticmethod
-    def error(line, message):
-        """Reports an error to the user."""
-        Snek.report(line, "", message)
-
-    @staticmethod
-    def report(line, where, message):
-        print(f"[line {line}] Error{where}: {message}", file=sys.stderr)
-        Snek.had_error = True
+        
+        # Test error reporting
+        # error.error(1, "This is a test error.")
 
 if __name__ == "__main__":
     Snek.main()
@@ -166,18 +181,17 @@ if __name__ == "__main__":
 
 ### Error Handling
 
-Robust error handling is critical for a language. Note the `had_error` flag.
+Robust error handling is critical for a language. Note the use of `error.had_error`.
 *   In **Script Mode**, if an error occurs, we must ensure the process exits with a failure code so that other scripts or build tools know it failed.
 *   In **REPL Mode**, we report the error but reset the flag. We do not want to crash the interpreter just because the user made a typo.
 
 ## 5. Exercise
 
-1.  Create the `snek.py` file with the code above.
-2.  **Test the REPL:**
+1.  **Test the REPL:**
     *   Run `python3 snek.py`.
     *   Type some text and press Enter. You should see the debug message.
-    *   Exit using `Ctrl+D` (Linux/Mac) or `Ctrl+Z` (Windows).
-3.  **Test Script Mode:**
+    *   Exit using `Ctrl+D` (Linux/Mac) or `Ctrl+C` (Windows).
+2.  **Test Script Mode:**
     *   Create a dummy file named `hello.snek` with some text inside.
     *   Run `python3 snek.py hello.snek`.
     *   Ensure it reads the file and prints the debug message.
