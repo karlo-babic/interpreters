@@ -8,7 +8,7 @@ nav_order: 3
 
 The first step in any compiler or interpreter is scanning. The scanner takes in raw source code as a long string of characters and groups it into a series of chunks we call **tokens**. These are the meaningful "words" and "punctuation" that make up the language's grammar.
 
-By the end of this chapter, we will have a full-featured, fast scanner. To make the process rewarding, we will wire up the scanner immediately so you can test your code as you add each new feature.
+By the end of this chapter, we will have a full-featured, fast scanner. We will wire up the scanner immediately so you can test your code as you add each new feature.
 
 ## 1. Lexemes and Tokens
 
