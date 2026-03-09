@@ -360,11 +360,11 @@ Then implement `number()` and a new `peek_next()` helper:
 
 #### Checkpoint: Break-it
 <details>
-<summary>In our <code>number()</code> method, we use <code>peek_next()</code> to look past the decimal point. What happens if we just used <code>match('.')</code> instead? Give an example of a Snek expression that would scan incorrectly.</summary>
+<summary>In our <code>number()</code> method, we check for a fractional part using <code>if self.peek() == '.' and self.peek_next().isdigit():</code>. What would happen if we simplified this to just use <code>if self.match('.'):</code>? Give an example of a Snek expression that would scan incorrectly.</summary>
 
-If we used `match('.')`, the scanner would eagerly consume the dot without checking if a digit follows. 
+If we used `if self.match('.'):`, the scanner would eagerly consume the dot character without first checking if a digit actually follows it. 
 
-If a user wrote a method call on a number, such as `123.sqrt()`, the scanner would consume `123.` as a number literal, leaving `sqrt()` as an identifier. The number literal `123.` is invalid in Snek, and we would lose the `.` operator needed for the method call. We must look ahead to ensure the dot is actually part of the number.
+Because `match()` consumes the character upon a successful match, the dot would become part of the current number lexeme. If a user wrote a method call on a number, such as `123.sqrt()`, the scanner would consume `123.` as a single number literal, leaving `sqrt()` as a separate identifier. We would lose the `.` token entirely, which the parser needs to understand the method call. We must use `peek()` and `peek_next()` to look ahead and ensure the dot is actually part of a fraction before we commit to consuming it.
 </details>
 
 **Test it out:**
