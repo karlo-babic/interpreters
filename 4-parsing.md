@@ -277,6 +277,16 @@ Many languages feature a C-style conditional operator, also known as the ternary
 
 Add this to your AST and parser.
 
+**Requirements:**
+*   It should have the lowest precedence, right below `equality`.
+*   Ternary operators are right-associative. The expression `a ? b : c ? d : e` evaluates as `a ? b : (c ? d : e)`. 
+*   Your updated grammar rules for this section of the precedence ladder should look like this:
+    ```text
+    expression → ternary ;
+    ternary    → equality ( "?" expression ":" ternary )? ;
+    equality   → comparison ( ( "!=" | "==" ) comparison )* ;
+    ```
+
 <details>
 <summary>Implementation Hints</summary>
 
