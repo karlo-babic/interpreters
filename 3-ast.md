@@ -27,13 +27,13 @@ A CFG consists of a set of rules called *productions*. A rule produces a sequenc
 Using BNF, here is a grammar that describes all of the expressions we eventually want to support in Snek:
 
 ```text
-expression → literal
+expression → primary
            | unary
-           | binary
-           | grouping ;
+           | binary ;
 
-literal    → NUMBER | STRING | "true" | "false" | "nil" ;
-grouping   → "(" expression ")" ;
+primary    → NUMBER | STRING | "true" | "false" | "nil" 
+           | "(" expression ")" ;
+
 unary      → ( "-" | "!" ) expression ;
 binary     → expression operator expression ;
 operator   → "==" | "!=" | "<" | "<=" | ">" | ">="
@@ -51,7 +51,7 @@ operator   → "==" | "!=" | "<" | "<=" | ">" | ">="
 >
 > This grammar is a good starting point, but it has a serious problem: it is **ambiguous**. For an expression like `5 - 3 * 1`, this grammar allows two different valid syntax trees: `(5 - 3) * 1` or `5 - (3 * 1)`. It doesn't understand operator precedence (that `*` should happen before `-`).
 >
-> For now, this is okay. **In this chapter, we will only implement the `literal` and `grouping` rules.** In the next chapter, we will replace this ambiguous grammar with a more sophisticated one that precisely encodes operator precedence and associativity.
+> For now, this is okay. **In this chapter, we will only implement the `primary` rule.** In the next chapter, we will replace this ambiguous grammar with a more sophisticated one that precisely encodes operator precedence and associativity.
 
 ## 2. Representing the AST
 
@@ -264,7 +264,7 @@ These helper methods are the "eyes and hands" of our parser. They are very simil
 *   **`check(token_type)`** looks at the current token to see if it is of the given type, but *does not* consume it.
 *   **`match(*types)`** is our primary tool for branching. It checks if the current token has any of the given types. If it does, it consumes the token and returns `True`. Otherwise, it leaves the token alone and returns `False`.
 
-## 5. Parsing Literals
+## 5. Parsing Literals (and Grouping)
 
 With our navigation helpers ready, we can translate our grammar rules directly into Python methods. We will start with the `primary` rule, which is the rule for the highest-precedence expressions (those that don't involve operators, like literals and groupings).
 
