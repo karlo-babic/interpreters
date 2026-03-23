@@ -243,13 +243,33 @@ If your output matches, congratulations! You have successfully implemented a rec
 Add an exponentiation operator (`**`) to Snek. 
 
 **Requirements:**
-*   It should have higher precedence than multiplication and division, but lower precedence than unary operators like `-`.
+*   It should have higher precedence than multiplication and division (`factor`), but lower precedence than unary operators like `-` (`unary`).
 *   Unlike addition and multiplication, exponentiation is **right-associative**. Mathematical rules state that `2 ** 3 ** 2` must be evaluated as `2 ** (3 ** 2)` (which is `2 ** 9 = 512`), NOT `(2 ** 3) ** 2` (which is `8 ** 2 = 64`).
+*   Your updated grammar rules for this section of the precedence ladder should look like this (notice the `?` in the `power` rule, which means the operator and right-hand side are optional - can appear zero or one time before recursing):
+    ```text
+    factor → power ( ( "/" | "*" ) power )* ;
+    power  → unary ( "**" power )? ;
+    unary  → ( "!" | "-" ) unary | primary ;
+    ```
 
 <details>
-<summary>Hint</summary>
+<summary>Implementation Hints</summary>
 
-Because it evaluates right-to-left, you cannot parse it using a `while` loop like the other binary operators. The method will need to recursively call itself for the right-hand operand.
+To implement this successfully, you will need to touch a few different parts of the pipeline:
+
+1.  **The Scanner:** 
+    *   Add a new `STAR_STAR` enum value to `TokenType`.
+    *   In your scanner, modify the logic that handles `*`. Use `self.match('*')` to check if a second asterisk follows the first. If it does, emit a `STAR_STAR` token; otherwise, emit a standard `STAR`.
+2.  **The AST:** 
+    *   You do not need a new AST node. Exponentiation is just another `Binary` expression. Your `AstPrinter` will automatically handle it using the operator's lexeme.
+3.  **The Parser (Precedence):** 
+    *   Create a new method named `power()`. 
+    *   To slot it into the correct precedence level, update your `factor()` method to call `self.power()` instead of `self.unary()`. 
+    *   Your new `power()` method will then be the one to call `self.unary()`.
+4.  **The Parser (Associativity):** 
+    *   Because exponentiation evaluates right-to-left, you cannot parse it using a `while` loop like the other binary operators. 
+    *   Instead, inside `power()`, first call `self.unary()` to get the left operand. 
+    *   Then, use an `if self.match(TokenType.STAR_STAR):` block. If you find the operator, grab the previous token, and **recursively call `self.power()`** to get the right operand. Finally, wrap them in an `expr.Binary` node and return it.
 </details>
 
 ### 2. The Ternary Operator (`? :`)
@@ -260,15 +280,30 @@ Add this to your AST and parser.
 <details>
 <summary>Implementation Hints</summary>
 
-*   **The AST Node:** You will need a new node in `expr.py`.
-    ```python
-    @dataclass
-    class Ternary(Expr):
-        condition: Expr
-        then_branch: Expr
-        else_branch: Expr
-    ```
-*   **Precedence:** It should have the lowest precedence, right below `equality`. (This means `expression` should call `ternary`, and `ternary` should call `equality`).
-*   **Associativity:** Ternary operators are right-associative. The expression `a ? b : c ? d : e` evaluates as `a ? b : (c ? d : e)`. 
-*   **Parsing Logic:** In your `ternary()` method, first parse an `equality()` expression. Then, use `if self.match(TokenType.QUESTION):`. If it matches, parse the `then_branch` using `self.expression()`, `consume` the colon (`:`), and recursively call `self.ternary()` for the `else_branch`.
+1.  **The Scanner:**
+    *   Add `QUESTION` and `COLON` to `TokenType`.
+    *   Update `scanner.py` to recognize `?` and `:` as single-character tokens.
+2.  **The AST Node:** 
+    *   You will need a new node in `expr.py`:
+        ```python
+        @dataclass
+        class Ternary(Expr):
+            condition: Expr
+            then_branch: Expr
+            else_branch: Expr
+        ```
+    *   Update `ast_printer.py` with a new `case` to format this node (e.g., returning something like `(? condition then_branch else_branch)`).
+3.  **Precedence:** 
+    *   The ternary operator should have the lowest precedence, sitting right below `equality`. 
+    *   Update your `expression()` entry point to call a new `ternary()` method instead of `equality()`.
+4.  **Associativity and Parsing Logic:** 
+    *   Ternary operators are right-associative. The expression `a ? b : c ? d : e` evaluates as `a ? b : (c ? d : e)`. 
+    *   In your new `ternary()` method, start by parsing the condition using `self.equality()`. 
+    *   Then, use `if self.match(TokenType.QUESTION):` to check for the operator. 
+    *   If it matches, parse the `then_branch`. You can use `self.expression()` here to allow any valid expression.
+    *   Next, use `self.consume(TokenType.COLON, "...")` to ensure the colon is present.
+    *   Finally, for the `else_branch`, **recursively call `self.ternary()`** to ensure right-associativity, and return your new `expr.Ternary` node.
+5.  **Verification:**
+    *   If you run the REPL and type `1 == 2 ? 3 : 4 == 4 ? 5 : 6;`, your `AstPrinter` should output exactly:
+        `(? (== 1.0 2.0) 3.0 (? (== 4.0 4.0) 5.0 6.0))`
 </details>
