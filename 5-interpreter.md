@@ -221,27 +221,29 @@ Our code currently has a dangerous flaw. If the user evaluates `"muffin" - 5`, P
 
 A runtime error is a failure that the language semantics demand we detect and report while the program is running. We must intercept these invalid operations, report them in Snek's terminology, and handle them without crashing the host process.
 
-Create a new custom exception. You can place this at the top of `interpreter.py`:
+Create a new custom exception in `error.py`, along with the `Token` import:
 
 ```python
+from token_class import Token
+
 class SnekRuntimeError(Exception):
     def __init__(self, token: Token, message: str):
         super().__init__(message)
         self.token = token
 ```
 
-Next, add type-checking helpers to your `Interpreter` class:
+Next, add type-checking helpers to your `Interpreter` class (Make sure you add `import error` at the top of `interpreter.py`):
 
 ```python
     def check_number_operand(self, operator: Token, operand: object):
         if isinstance(operand, float):
             return
-        raise SnekRuntimeError(operator, "Operand must be a number.")
+        raise error.SnekRuntimeError(operator, "Operand must be a number.")
 
     def check_number_operands(self, operator: Token, left: object, right: object):
         if isinstance(left, float) and isinstance(right, float):
             return
-        raise SnekRuntimeError(operator, "Operands must be numbers.")
+        raise error.SnekRuntimeError(operator, "Operands must be numbers.")
 ```
 
 Now, we need to go back and update our `Unary` and `Binary` cases in the `evaluate` method to use these checks before attempting to execute Python math operations. 
@@ -277,7 +279,7 @@ Replace your previous `Unary` and `Binary` cases with this complete, type-checke
                         return float(left) + float(right)
                     if isinstance(left, str) and isinstance(right, str):
                         return str(left) + str(right)
-                    raise SnekRuntimeError(operator, "Operands must be two numbers or two strings.")
+                    raise error.SnekRuntimeError(operator, "Operands must be two numbers or two strings.")
                 
                 elif operator.type == TokenType.GREATER:
                     self.check_number_operands(operator, left, right)
@@ -311,13 +313,7 @@ def runtime_error(err):
 
 We are throwing our new `SnekRuntimeError`, but our main pipeline doesn't know how to catch it yet. If a user triggers it right now, Python will still crash with an unhandled exception.
 
-Open `snek.py`. Update your import to include the new error class:
-
-```python
-from interpreter import Interpreter, SnekRuntimeError
-```
-
-Finally, update the execution block at the bottom of your `run` method to catch the error and route it to our `error.py` module:
+Open `snek.py`. update the execution block at the bottom of your `run` method to catch the error and route it to our `error.py` module:
 
 ```python
         # Interpret the AST
@@ -325,7 +321,7 @@ Finally, update the execution block at the bottom of your `run` method to catch 
         try:
             result = interpreter.evaluate(expression)
             print(interpreter.stringify(result))
-        except SnekRuntimeError as err:
+        except error.SnekRuntimeError as err:
             error.runtime_error(err)
 ```
 
