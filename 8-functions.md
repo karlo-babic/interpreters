@@ -290,7 +290,7 @@ fun sayHi(first, last) {
 }
 sayHi("Dear", "Reader");
 ```
-Your interpreter can now define and execute functions!
+Your interpreter can now define and execute functions.
 
 ## 4. Return Statements
 
