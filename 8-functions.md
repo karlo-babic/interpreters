@@ -230,7 +230,7 @@ We delegate to a new `function(kind)` method. We pass `"function"` as a string b
                     break
         
         self.consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
-        self.consume(TokenType.LEFT_BRACE, f"Expect '{{' before {kind} body.")
+        self.consume(TokenType.LEFT_BRACE, "Expect '{' before " + kind + " body.")
         
         body = self.block()
         return stmt.Function(name, parameters, body)
