@@ -389,7 +389,7 @@ for (var i = 0; i < 15; i = i + 1) {
 
 ## 5. Closures
 
-Our functions are powerful, but they harbor a subtle bug. Look closely at how we initialize the `Environment` in `SnekFunction.call()`:
+Our functions are powerful, but they have a subtle bug. Look closely at how we initialize the `Environment` in `SnekFunction.call()`:
 
 ```python
 environment = Environment(interpreter.globals)
