@@ -306,7 +306,7 @@ Add the AST node to `stmt.py`:
 @dataclass
 class Return(Stmt):
     keyword: Token
-    value: Expr | None
+    value: expr.Expr | None
 ```
 
 In `parser.py`, update `statement()` to match it:
