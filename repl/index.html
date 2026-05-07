@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Snek Web REPL & Editor</title>
+        <!-- mini-coi-fd.js provides Cross-Origin Isolation (COI), which enables SharedArrayBuffer.
+             This is required for the PyScript worker to interact directly with the DOM in real-time. -->
+        <script src="./mini-coi-fd.js"></script>
+        <script type="module" src="./pyscript/core.js" offline></script>
+        <link rel="stylesheet" href="./pyscript/core.css">
+        
+        <style>
+            body {
+                background-color: #121212;
+                color: #00ff00;
+                font-family: 'Courier New', Courier, monospace;
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+                box-sizing: border-box;
+            }
+            h2 {
+                margin-top: 0;
+                margin-bottom: 15px;
+                color: #e0e0e0;
+            }
+            .workspace {
+                display: flex;
+                flex-direction: row;
+                flex: 1;
+                gap: 20px;
+                overflow: hidden;
+            }
+            .panel {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                border: 1px solid #333;
+                background-color: #000;
+                border-radius: 4px;
+                overflow: hidden;
+            }
+            
+            /* Terminal Specific Styles */
+            #terminal {
+                flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+                overflow-y: auto;
+                padding: 10px;
+            }
+            #output {
+                white-space: pre-wrap;
+                margin: 0;
+            }
+            .input-line {
+                display: flex;
+                margin-top: 5px;
+            }
+            .prompt {
+                margin-right: 10px;
+                color: #00ff00;
+            }
+            #repl-input {
+                background: transparent;
+                border: none;
+                color: #00ff00;
+                font-family: inherit;
+                font-size: inherit;
+                flex-grow: 1;
+                outline: none;
+            }
+            .error { 
+                color: #ff5555; 
+            }
+            .system-msg {
+                color: #888888;
+            }
+
+            /* Editor Specific Styles */
+            #editor-panel {
+                background-color: #1e1e1e;
+            }
+            #editor {
+                flex-grow: 1;
+                background: transparent;
+                color: #d4d4d4;
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 14px;
+                border: none;
+                padding: 15px;
+                resize: none;
+                outline: none;
+                white-space: pre;
+                overflow-y: auto;
+            }
+            #run-btn {
+                background-color: #007acc;
+                color: white;
+                border: none;
+                padding: 12px;
+                cursor: pointer;
+                font-family: inherit;
+                font-size: 16px;
+                font-weight: bold;
+                transition: background-color 0.2s;
+            }
+            #run-btn:hover {
+                background-color: #005f9e;
+            }
+            #run-btn:active {
+                background-color: #004a7c;
+            }
+        </style>
+
+        <py-config>
+            {
+                "fetch": [
+                    { "from": "./snek/snek.py", "to": "./snek/snek.py" },
+                    { "from": "./snek/ast_printer.py", "to": "./snek/ast_printer.py" },
+                    { "from": "./snek/environment.py", "to": "./snek/environment.py" },
+                    { "from": "./snek/error.py", "to": "./snek/error.py" },
+                    { "from": "./snek/expr.py", "to": "./snek/expr.py" },
+                    { "from": "./snek/interpreter.py", "to": "./snek/interpreter.py" },
+                    { "from": "./snek/natives.py", "to": "./snek/natives.py" },
+                    { "from": "./snek/parser.py", "to": "./snek/parser.py" },
+                    { "from": "./snek/resolver.py", "to": "./snek/resolver.py" },
+                    { "from": "./snek/return_class.py", "to": "./snek/return_class.py" },
+                    { "from": "./snek/scanner.py", "to": "./snek/scanner.py" },
+                    { "from": "./snek/snek_callable.py", "to": "./snek/snek_callable.py" },
+                    { "from": "./snek/snek_function.py", "to": "./snek/snek_function.py" },
+                    { "from": "./snek/stmt.py", "to": "./snek/stmt.py" },
+                    { "from": "./snek/token_class.py", "to": "./snek/token_class.py" },
+                    { "from": "./snek/token_type.py", "to": "./snek/token_type.py" }
+                ]
+            }
+        </py-config>
+    </head>
+    <body>
+        <div class="workspace">
+            <!-- Left Panel: Interactive Terminal -->
+            <div class="panel" id="repl-panel">
+                <div id="terminal">
+                    <div id="output">Loading Snek environment...<br></div>
+                    <div class="input-line">
+                        <span class="prompt">&gt;</span>
+                        <input type="text" id="repl-input" autocomplete="off" disabled>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Script Editor -->
+            <div class="panel" id="editor-panel">
+                <textarea id="editor" spellcheck="false" placeholder="Write your Snek script here..."></textarea>
+                <button id="run-btn">Run Script</button>
+            </div>
+        </div>
+
+        <!-- 
+            Using the `worker` attribute moves Python execution to a background thread.
+            This prevents a long-running Snek script from blocking the browser's main UI thread,
+            allowing the terminal stream to update the DOM natively and display line-by-line 
+            outputs in real-time as they happen. 
+        -->
+        <script type="py" worker>
+            import sys
+            import traceback
+            from pyscript import document, when
+            
+            sys.path.append("./snek")
+            
+            from snek import Snek
+            import error
+
+            output_div = document.getElementById("output")
+            input_box = document.getElementById("repl-input")
+            editor_box = document.getElementById("editor")
+
+            class TerminalStream:
+                """
+                A custom file-like stream that routes Python's stdout and stderr 
+                directly into the DOM terminal across the web worker boundary. 
+                """
+                def __init__(self, is_error=False):
+                    self.is_error = is_error
+                    self.current_span = None
+
+                def write(self, text):
+                    if not text:
+                        return
+                    
+                    if not self.current_span:
+                        self.current_span = document.createElement("span")
+                        if self.is_error:
+                            self.current_span.className = "error"
+                        output_div.appendChild(self.current_span)
+                    
+                    self.current_span.innerText += text
+                    
+                    if text.endswith("\n"):
+                        self.current_span = None
+                        
+                    terminal = document.getElementById("terminal")
+                    terminal.scrollTop = terminal.scrollHeight
+
+                def flush(self):
+                    pass
+
+            def print_system_message(msg):
+                """Prints structural/UI messages bypassing standard streams."""
+                span = document.createElement("span")
+                span.className = "system-msg"
+                span.innerText = f"{msg}\n"
+                output_div.appendChild(span)
+                terminal = document.getElementById("terminal")
+                terminal.scrollTop = terminal.scrollHeight
+
+            def execute_snek_code(code, is_repl=False):
+                """
+                Executes the provided code inside the Snek interpreter, routing
+                all stdout and stderr output to the terminal interface.
+                """
+                old_stdout = sys.stdout
+                old_stderr = sys.stderr
+                
+                sys.stdout = TerminalStream(is_error=False)
+                sys.stderr = TerminalStream(is_error=True)
+
+                try:
+                    Snek.run(code, repl_mode=is_repl)
+                except Exception:
+                    sys.stderr.write(traceback.format_exc())
+                finally:
+                    # Reset the error flags so the session can continue cleanly
+                    error.had_error = False
+                    error.had_runtime_error = False
+                    
+                    sys.stdout = old_stdout
+                    sys.stderr = old_stderr
+
+            @when("keypress", "#repl-input")
+            def handle_enter(event):
+                """Handles input evaluation for the standard REPL line."""
+                if event.key == "Enter":
+                    code = input_box.value
+                    input_box.value = "" 
+                    
+                    if not code.strip():
+                        print_system_message("> ")
+                        return
+
+                    span = document.createElement("span")
+                    span.innerText = f"> {code}\n"
+                    output_div.appendChild(span)
+
+                    execute_snek_code(code, is_repl=True)
+
+            @when("click", "#run-btn")
+            def handle_run_script(event):
+                """Handles execution of the entire editor file block."""
+                code = editor_box.value
+                if not code.strip():
+                    return
+                    
+                print_system_message("\n=== Running Script ===")
+                execute_snek_code(code, is_repl=False)
+                print_system_message("=== Script Finished ===\n")
+
+            # Initialization logic
+            output_div.innerHTML = ""
+            print_system_message("Snek REPL (Web Version)")
+            print_system_message("Type code below or use the editor to the right.\n")
+            
+            input_box.removeAttribute("disabled")
+            input_box.focus()
+        </script>
+    </body>
+</html>
