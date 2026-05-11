@@ -456,7 +456,7 @@ Then, insert it in the `run()` method right after parsing:
 
 ### Test it out
 
-Run the initial pathological script that broke our interpreter:
+Run the initial script that broke our interpreter:
 
 ```c
 var a = "global";
