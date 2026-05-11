@@ -1,10 +1,10 @@
 ---
 layout: default
-title: "9. Semantic Analysis & Resolving"
+title: "9. Semantic Analysis"
 nav_order: 10
 ---
 
-# 9. Semantic Analysis and Resolving
+# 9. Semantic Analysis (The Resolver)
 
 In the previous chapters, we introduced variables, blocks, and closures. Our interpreter dynamically creates environments to represent scopes and chains them together. Most of the time, this dynamic approach perfectly mirrors the lexical scope of the source code. 
 
