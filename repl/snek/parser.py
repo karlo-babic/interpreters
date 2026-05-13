@@ -45,6 +45,8 @@ class Parser:
 
     def declaration(self) -> stmt.Stmt | None:
         try:
+            if self.match(TokenType.CLASS):
+                return self.class_declaration()
             if self.match(TokenType.FUN):
                 return self.function("function")
             if self.match(TokenType.VAR):
@@ -53,6 +55,20 @@ class Parser:
         except ParseError:
             self.synchronize()
             return None
+
+    def class_declaration(self) -> stmt.Stmt:
+        name = self.consume(TokenType.IDENTIFIER, "Expect class name.")
+        self.consume(TokenType.LEFT_BRACE, "Expect '{' before class body.")
+
+        methods = []
+        while not self.check(TokenType.RIGHT_BRACE) and not self.is_at_end():
+            is_static = self.match(TokenType.CLASS)
+            method = self.function("method")
+            method.is_static = is_static
+            methods.append(method)
+
+        self.consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
+        return stmt.Class(name, methods)
 
     def function(self, kind: str) -> stmt.Stmt:
         name = self.consume(TokenType.IDENTIFIER, f"Expect {kind} name.")
@@ -196,21 +212,18 @@ class Parser:
         return self.assignment()
 
     def assignment(self) -> expr.Expr:
-        # Parse the left hand side as a normal expression
-        expr_node = self.ternary() 
+        expr_node = self.ternary()
 
         if self.match(TokenType.EQUAL):
             equals = self.previous()
-            # Recursively parse the right hand side
             value = self.assignment()
 
-            # Validate the left hand side is an l-value
             if isinstance(expr_node, expr.Variable):
                 name = expr_node.name
                 return expr.Assign(name, value)
+            elif isinstance(expr_node, expr.Get):
+                return expr.Set(expr_node.object, expr_node.name, value)
 
-            # We report an error, but we do not throw ParseError because 
-            # we aren't in a confused state that requires panic mode synchronization.
             self.error(equals, "Invalid assignment target.")
 
         return expr_node
@@ -312,6 +325,9 @@ class Parser:
         while True:
             if self.match(TokenType.LEFT_PAREN):
                 expr_node = self.finish_call(expr_node)
+            elif self.match(TokenType.DOT):
+                name = self.consume(TokenType.IDENTIFIER, "Expect property name after '.'.")
+                expr_node = expr.Get(expr_node, name)
             else:
                 break
 
@@ -343,6 +359,9 @@ class Parser:
 
         if self.match(TokenType.FUN):
             return self.anonymous_function()
+
+        if self.match(TokenType.THIS):
+            return expr.This(self.previous())
 
         if self.match(TokenType.LEFT_PAREN):
             e = self.expression()

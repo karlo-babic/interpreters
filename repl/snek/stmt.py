@@ -39,8 +39,14 @@ class Function(Stmt):
     name: Token
     params: list[Token]
     body: list[Stmt]
+    is_static: bool = False
 
 @dataclass
 class Return(Stmt):
     keyword: Token
     value: expr.Expr | None
+
+@dataclass
+class Class(Stmt):
+    name: Token
+    methods: list['Function']

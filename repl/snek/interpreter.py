@@ -4,6 +4,8 @@ from environment import Environment
 from snek_function import SnekFunction
 from return_class import ReturnException
 from snek_callable import SnekCallable
+from snek_class import SnekClass
+from snek_instance import SnekInstance
 import error
 import expr
 import stmt
@@ -68,6 +70,23 @@ class Interpreter:
                 if value_expr is not None:
                     value = self.evaluate(value_expr)
                 raise ReturnException(value)
+
+            case stmt.Class(name, methods):
+                self.environment.define(name.lexeme, None)
+                
+                class_methods = {}
+                static_methods = {}
+                for method in methods:
+                    is_init = method.name.lexeme == "init" and not method.is_static
+                    function = SnekFunction(method, self.environment, is_init)
+                    
+                    if method.is_static:
+                        static_methods[method.name.lexeme] = function
+                    else:
+                        class_methods[method.name.lexeme] = function
+                
+                klass = SnekClass(name.lexeme, class_methods, static_methods)
+                self.environment.assign(name, klass)
 
     def execute_block(self, statements: list[stmt.Stmt], environment: Environment):
         previous = self.environment
@@ -146,11 +165,7 @@ class Interpreter:
                     return self.evaluate(else_expr)
 
             case expr.Variable(name):
-                distance = self.locals.get(id(expression))
-                if distance is not None:
-                    return self.environment.get_at(distance, name.lexeme)
-                else:
-                    return self.globals.get(name)
+                return self.look_up_variable(name, expression)
             
             case expr.Assign(name, value_expr):
                 value = self.evaluate(value_expr)
@@ -194,6 +209,30 @@ class Interpreter:
 
             case expr.AnonymousFunction():
                 return SnekFunction(expression, self.environment)
+
+            case expr.Get(object_expr, name):
+                obj = self.evaluate(object_expr)
+                if isinstance(obj, SnekInstance):
+                    return obj.get(name)
+                elif isinstance(obj, SnekClass):
+                    method = obj.find_static_method(name.lexeme)
+                    if method is not None:
+                        return method
+                    raise error.SnekRuntimeError(name, f"Undefined property '{name.lexeme}'.")
+                    
+                raise error.SnekRuntimeError(name, "Only instances and classes have properties.")
+                
+            case expr.Set(object_expr, name, value_expr):
+                obj = self.evaluate(object_expr)
+                if not isinstance(obj, SnekInstance):
+                    raise error.SnekRuntimeError(name, "Only instances have properties.")
+                    
+                value = self.evaluate(value_expr)
+                obj.set(name, value)
+                return value
+
+            case expr.This(keyword):
+                return self.look_up_variable(keyword, expression)
 
     def is_truthy(self, obj: object) -> bool:
         if obj is None:
@@ -240,3 +279,10 @@ class Interpreter:
             return text
             
         return str(obj)
+
+    def look_up_variable(self, name: Token, expr_node: expr.Expr) -> object:
+        distance = self.locals.get(id(expr_node))
+        if distance is not None:
+            return self.environment.get_at(distance, name.lexeme)
+        else:
+            return self.globals.get(name)

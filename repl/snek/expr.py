@@ -56,3 +56,18 @@ class AnonymousFunction(Expr):
     keyword: Token
     params: list[Token]
     body: list['stmt.Stmt'] # Forward reference to Stmt
+
+@dataclass
+class Get(Expr):
+    object: Expr
+    name: Token
+
+@dataclass
+class Set(Expr):
+    object: Expr
+    name: Token
+    value: Expr
+
+@dataclass
+class This(Expr):
+    keyword: Token
