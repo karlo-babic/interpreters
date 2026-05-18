@@ -38,10 +38,6 @@ class Class(Stmt):
     methods: list['Function']
 ```
 
-> **Python Toolbox: Forward References**
-> 
-> Because the `Function` class is defined lower down in `stmt.py`, Python will throw a `NameError` if we try to use it as a type hint directly. We enclose `'Function'` in a string to create a forward reference, which `@dataclass` knows how to handle correctly.
-
 ## 2. Class Declarations
 
 To parse this new syntax, open `parser.py`. We update our `declaration()` entry point to look for the new keyword.
