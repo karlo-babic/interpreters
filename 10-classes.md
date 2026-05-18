@@ -80,7 +80,7 @@ Before we execute a class, it must pass through semantic analysis. Open `resolve
                 # We will resolve the methods later in this chapter.
 ```
 
-At runtime, a class declaration creates a class object and binds it to a variable. Create a new file named `snek_class.py`. This is the runtime representation of a class.
+At runtime, a class declaration creates a SnekClass object and binds it to a variable. Create a new file named `snek_class.py`. This is the runtime representation of a class.
 
 ```python
 class SnekClass:
