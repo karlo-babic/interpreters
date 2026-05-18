@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "10. Classes, Methods, & Initializers"
+title: "10. Classes"
 nav_order: 11
 ---
 
