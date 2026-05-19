@@ -537,7 +537,7 @@ Next, update your `resolve_function` helper method to accept a new `function_typ
         self.current_function = enclosing_function
 ```
 
-*(Note: Because we changed the signature of `resolve_function`, you will need to update your existing `stmt.Function` and `expr.AnonymousFunction` cases to pass `FunctionType.FUNCTION` as the third argument.)*
+Because we changed the signature of `resolve_function`, you will need to update your existing `stmt.Function` and `expr.AnonymousFunction` cases to pass `FunctionType.FUNCTION` as the third argument.
 
 Now we can properly pass the context from the `stmt.Class` loop. If the method is named `"init"`, we pass `INITIALIZER`; otherwise, we pass `METHOD`. Update your `stmt.Class` case:
 
