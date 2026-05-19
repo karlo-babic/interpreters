@@ -130,10 +130,8 @@ class SnekClass(SnekCallable):
 To support this, we need the runtime representation of an instance. Create `snek_instance.py`.
 
 ```python
-from snek_class import SnekClass
-
 class SnekInstance:
-    def __init__(self, klass: SnekClass):
+    def __init__(self, klass: 'SnekClass'):
         self.klass = klass
 
     def __str__(self):
